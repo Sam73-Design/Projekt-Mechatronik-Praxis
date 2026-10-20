@@ -2,7 +2,8 @@
 
 Teilnehmer:
 Sam Miller
-
+Elija Kimmig
+Silas Schwenteck
 
 Lasten: 
     MUSS:
