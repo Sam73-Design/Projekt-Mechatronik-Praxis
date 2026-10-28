@@ -1,68 +1,49 @@
-/*
-Sunfounder line follower module 
-returns 2 bytes per sensor
-following code reads all sensors and stores values as uint16_t*/
-
 #include <Arduino.h>
-#include <Wire.h>
+#include <string.h>
+#include <I2CDisplay.h>
 
-#define SENSOR_ADDRESS 0x09
-#define NUM_SENSORS 8
-#define DATA_BYTES 16
+float temperatureC = 30.0f;
+float motorSpeedRpm = 1250.0f;
+int batteryPercent = 82;
+bool systemActive = true;
+char mode[5] = "Line";
+int sensorValues[8] = {0,0,0,0,0,0,0,0};
 
-byte sensorData[DATA_BYTES];
+void toggleMode(void *pointer) {
+  char *text = static_cast<char *>(pointer);
+  strcpy(text, strcmp(text, "Line") == 0 ? "Sort" : "Line");
+}
+
+DisplayVariable variables[] = {
+    {"Temperature", &temperatureC, 'f'},
+    {"Motor speed", &motorSpeedRpm, 'f'},
+    {"Battery", &batteryPercent, 'i'},
+    {"System active", &systemActive, 'b'},
+    {"Mode", mode, 's', toggleMode},
+    {"Linetrackers", sensorValues, 'l'},
+};
+I2CDisplay displayMenu(variables, sizeof(variables) / sizeof(variables[0]));
 
 void setup() {
   Serial.begin(9600);
-  Wire.begin();
-
-  // Standard I2C speed
-  Wire.setClock(100000);
-
-  Serial.println("SunFounder 8-Channel Line Follower");
-  Serial.println("Starting sensor...");
-  delay(500);
+  if (!displayMenu.begin()) {
+    Serial.println("OLED initialization failed");
+  }
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
+  pinMode(A3, INPUT);
 }
 
 void loop() {
-  // Request 16 bytes from the sensor
-  byte received = Wire.requestFrom(
-    (uint8_t)SENSOR_ADDRESS,
-    (uint8_t)DATA_BYTES
-  );
-
-  if (received == DATA_BYTES) {
-
-    // Read all 16 bytes
-    for (int i = 0; i < DATA_BYTES; i++) {
-      sensorData[i] = Wire.read();
-    }
-
-    // Display the two bytes for each channel
-    Serial.println("Sensor readings:");
-
-    for (int i = 0; i < NUM_SENSORS; i++) {
-      int index = i * 2;
-
-      Serial.print("Sensor ");
-      Serial.print(i + 1);
-      Serial.print(": ");
-      //shift first 8 bits to left and add second 8 bits to form a 16 bit value
-      uint16_t value = (sensorData[index] << 8) | sensorData[index + 1];
-      Serial.println(value);
-    }
-
-    Serial.println("------------------------");
-  }
-  else {
-    // Clear any remaining bytes
-    while (Wire.available()) {
-      Wire.read();
-    }
-
-    Serial.print("I2C read failed. Bytes: ");
-    Serial.println(received);
-  }
-
-  delay(500);
+  temperatureC = 0.48828125f * analogRead(A0);
+  sensorValues[0] = analogRead(A1);
+  sensorValues[1] = analogRead(A2);
+  sensorValues[2] = analogRead(A3);
+  sensorValues[3] = sensorValues[0] * 2;
+  sensorValues[4] = sensorValues[1] * 2;
+  sensorValues[5] = sensorValues[2] * 2;
+  sensorValues[6] = sensorValues[0] * 3;
+  sensorValues[7] = sensorValues[1] * 3;
+  displayMenu.update();
 }
